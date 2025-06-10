@@ -529,7 +529,7 @@
                     <h3 style="margin-bottom: 20px; color: #333;">ゲーム統計</h3>
                     <div class="stat-item">
                         <span class="stat-label">残り時間</span>
-                        <span class="stat-value" id="gameTime">05:00</span>
+                        <span class="stat-value" id="gameTime">01:30</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">平均反応時間</span>
@@ -546,15 +546,6 @@
                     <div class="stat-item">
                         <span class="stat-label">総問題数</span>
                         <span class="stat-value" id="totalQuestions">0</span>
-                    </div>
-                </div>
-
-                <div class="recent-performance">
-                    <h3 style="margin-bottom: 15px; color: #333;">最近の成績</h3>
-                    <div id="performanceLog">
-                        <div style="text-align: center; color: #999; font-style: italic;">
-                            ゲーム開始後に表示されます
-                        </div>
                     </div>
                 </div>
             </div>
@@ -596,7 +587,7 @@
             </div>
 
             <div class="chart-container">
-                <div class="chart-title">📈 集中度の推移 (5分間)</div>
+                <div class="chart-title">📈 集中度の推移 (90秒間)</div>
                 <canvas id="focusHistoryChart" width="600" height="300"></canvas>
             </div>
 
@@ -649,9 +640,15 @@
                 this.audioContext = null;
                 this.initAudio();
                 
-                // シンボルと色の定義
+                // シンボルと色の定義（インクジェット4色）
                 this.symbols = ['●', '▲', '★', '■', '♦', '❤'];
-                this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+                this.colors = ['#FF0000', '#0000FF', '#FFFF00', '#00FF00']; // 赤、青、黄、緑
+                this.colorNames = {
+                    '#FF0000': '赤',
+                    '#0000FF': '青', 
+                    '#FFFF00': '黄',
+                    '#00FF00': '緑'
+                };
                 this.shapes = [
                     { symbol: '●', name: '丸' },
                     { symbol: '▲', name: '三角' },
@@ -830,6 +827,9 @@
                 this.isPlaying = false;
                 this.isPaused = false;
                 
+                // ゲーム終了音を鳴らす
+                this.playGameEndBeep();
+                
                 clearInterval(this.gameInterval);
                 clearTimeout(this.nextChallengeTimeout);
                 this.clearTargets();
@@ -911,15 +911,7 @@
             }
             
             getColorName(color) {
-                const colorNames = {
-                    '#FF6B6B': '赤',
-                    '#4ECDC4': '青緑',
-                    '#45B7D1': '青',
-                    '#96CEB4': '緑',
-                    '#FFEAA7': '黄',
-                    '#DDA0DD': '紫'
-                };
-                return colorNames[color] || '色';
+                return this.colorNames[color] || '色';
             }
             
             createTargets() {
@@ -958,9 +950,8 @@
             }
             
             getContrastColor(backgroundColor) {
-                // 背景色に対してコントラストの良い文字色を返す
-                const lightColors = ['#FFEAA7', '#96CEB4', '#4ECDC4'];
-                return lightColors.includes(backgroundColor) ? '#333' : '#fff';
+                // 黄色の場合は黒文字、その他は白文字
+                return backgroundColor === '#FFFF00' ? '#000' : '#fff';
             }
             
             handleTargetClick(e, target) {
@@ -1010,7 +1001,7 @@
                     }
                 }
                 
-                // パフォーマンスログに追加
+                // パフォーマンスログに追加（統計用のみ）
                 this.performanceLog.unshift({
                     correct: isCorrect,
                     reactionTime,
@@ -1021,8 +1012,6 @@
                 if (this.performanceLog.length > 10) {
                     this.performanceLog.pop();
                 }
-                
-                this.updatePerformanceDisplay();
             }
             
             scheduleNextChallenge() {
@@ -1082,7 +1071,6 @@
                 this.instructionPanel.textContent = '「開始」ボタンを押してゲームを始めましょう！';
                 this.updateStatus('stopped', 'ゲーム準備完了');
                 this.updateUI();
-                this.updatePerformanceDisplay();
             }
             
             updateStatus(status, text) {
@@ -1249,17 +1237,19 @@
                     insights.push('🐌 反応がやや遅めです。疲労や注意散漫の可能性があります。');
                 }
                 
-                // 集中度推移の分析
+                // 集中度推移の分析（90秒セッション用に調整）
                 const startFocus = this.focusHistory.length > 0 ? this.focusHistory[0].focusScore : 0;
                 const endFocus = this.focusHistory.length > 0 ? this.focusHistory[this.focusHistory.length - 1].focusScore : 0;
                 const focusDecline = startFocus - endFocus;
                 
-                if (focusDecline <= 5) {
-                    insights.push('💪 安定した集中力！最後まで集中を維持できました。');
+                if (focusDecline <= 3) {
+                    insights.push('💪 抜群の集中持続力！90秒間、集中を維持できました。');
+                } else if (focusDecline <= 8) {
+                    insights.push('📊 軽微な集中力の低下。90秒間では自然な範囲内です。');
                 } else if (focusDecline <= 15) {
-                    insights.push('📊 軽微な集中力の低下。5分間では自然な範囲内です。');
+                    insights.push('📉 中程度の疲労傾向。短時間で集中力が低下しています。');
                 } else {
-                    insights.push('📉 明確な疲労傾向。休憩を取ってリフレッシュしましょう。');
+                    insights.push('⚠️ 顕著な疲労傾向。休憩やリフレッシュが必要かもしれません。');
                 }
                 
                 // ピーク集中度の分析
@@ -1269,10 +1259,12 @@
                     insights.push('✨ 良好な集中状態を経験しました。この調子を維持しましょう。');
                 }
                 
-                // 問題数の分析
+                // 問題数の分析（90秒 ÷ 2秒間隔 = 約45問が理想）
                 const expectedQuestions = Math.floor(this.sessionDuration / this.challengeInterval);
-                if (this.totalQuestions >= expectedQuestions * 0.9) {
+                if (this.totalQuestions >= expectedQuestions * 0.8) {
                     insights.push('🏃 積極的な参加！多くの問題に挑戦しました。');
+                } else if (this.totalQuestions < expectedQuestions * 0.5) {
+                    insights.push('🤔 回答数が少なめです。もう少し積極的に参加してみましょう。');
                 }
                 
                 document.getElementById('insightsList').innerHTML = insights
@@ -1314,9 +1306,9 @@
                 ctx.strokeStyle = '#e0e0e0';
                 ctx.lineWidth = 1;
                 
-                // 縦線（時間軸）
-                for (let i = 0; i <= 5; i++) {
-                    const x = padding + (chartWidth / 5) * i;
+                // 縦線（時間軸）- 30秒間隔
+                for (let i = 0; i <= 3; i++) {
+                    const x = padding + (chartWidth / 3) * i;
                     ctx.beginPath();
                     ctx.moveTo(x, padding);
                     ctx.lineTo(x, padding + chartHeight);
@@ -1337,10 +1329,11 @@
                 ctx.font = '12px sans-serif';
                 ctx.textAlign = 'center';
                 
-                // X軸ラベル（時間）
-                for (let i = 0; i <= 5; i++) {
-                    const x = padding + (chartWidth / 5) * i;
-                    ctx.fillText(`${i}分`, x, height - 10);
+                // X軸ラベル（時間）- 0, 30, 60, 90秒
+                const timeLabels = ['0秒', '30秒', '60秒', '90秒'];
+                for (let i = 0; i <= 3; i++) {
+                    const x = padding + (chartWidth / 3) * i;
+                    ctx.fillText(timeLabels[i], x, height - 10);
                 }
                 
                 // Y軸ラベル（集中度）
