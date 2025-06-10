@@ -906,11 +906,8 @@
             generateChallenge() {
                 const challengeTypes = [
                     'click_color',
-                    'avoid_color', 
                     'click_shape',
-                    'avoid_shape',
-                    'click_specific',
-                    'avoid_specific'
+                    'click_specific'
                 ];
                 
                 const type = challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
@@ -924,25 +921,13 @@
                         instruction = `${this.getColorName(targetColor)}をクリックしてください`;
                         correctAction = (target) => target.color === targetColor;
                         break;
-                    case 'avoid_color':
-                        instruction = `${this.getColorName(targetColor)}はクリックしないでください`;
-                        correctAction = (target) => target.color !== targetColor;
-                        break;
                     case 'click_shape':
                         instruction = `${targetShape.name}をクリックしてください`;
                         correctAction = (target) => target.symbol === targetShape.symbol;
                         break;
-                    case 'avoid_shape':
-                        instruction = `${targetShape.name}はクリックしないでください`;
-                        correctAction = (target) => target.symbol !== targetShape.symbol;
-                        break;
                     case 'click_specific':
                         instruction = `${this.getColorName(targetColor)}の${targetShape.name}をクリックしてください`;
                         correctAction = (target) => target.color === targetColor && target.symbol === targetShape.symbol;
-                        break;
-                    case 'avoid_specific':
-                        instruction = `${this.getColorName(targetColor)}の${targetShape.name}以外をクリックしてください`;
-                        correctAction = (target) => !(target.color === targetColor && target.symbol === targetShape.symbol);
                         break;
                 }
                 
