@@ -811,7 +811,7 @@
                 const elapsed = Date.now() - this.startTime;
                 const focusScore = this.calculateFocusScore();
                 
-                // 1秒ごとにデータを記録
+                // 1秒ごとにデータを記録（確実に90個のデータポイントを作る）
                 if (this.focusHistory.length === 0 || elapsed - this.focusHistory[this.focusHistory.length - 1].timestamp >= 1000) {
                     this.focusHistory.push({
                         timestamp: elapsed,
@@ -820,12 +820,18 @@
                         accuracy: this.totalQuestions > 0 ? (this.correctAnswers / this.totalQuestions) * 100 : 0,
                         totalQuestions: this.totalQuestions
                     });
+                    
+                    // デバッグ用ログ
+                    console.log(`Focus data recorded: ${this.focusHistory.length} points, time: ${Math.round(elapsed/1000)}s, score: ${focusScore}`);
                 }
             }
             
             endSession() {
                 this.isPlaying = false;
                 this.isPaused = false;
+                
+                // 最終データを確実に記録
+                this.recordFocusData();
                 
                 // ゲーム終了音を鳴らす
                 this.playGameEndBeep();
@@ -834,6 +840,7 @@
                 clearTimeout(this.nextChallengeTimeout);
                 this.clearTargets();
                 
+                console.log(`Session ended with ${this.focusHistory.length} data points`);
                 this.showResults();
             }
             
@@ -1082,13 +1089,16 @@
             }
             
             calculateFocusScore() {
-                if (this.reactionTimes.length === 0) return 0;
+                // ゲーム開始直後や活動がない場合のベーススコア
+                if (this.reactionTimes.length === 0) {
+                    return 50; // 中間値を返す
+                }
                 
                 const avgReactionTime = this.reactionTimes.reduce((sum, time) => sum + time, 0) / this.reactionTimes.length;
                 const accuracy = this.totalQuestions > 0 ? (this.correctAnswers / this.totalQuestions) * 100 : 0;
                 
-                // 反応時間スコア (500ms以下が理想)
-                const reactionScore = Math.max(0, 100 - (avgReactionTime - 500) / 10);
+                // 反応時間スコア (800ms以下が理想)
+                const reactionScore = Math.max(0, 100 - Math.max(0, avgReactionTime - 500) / 10);
                 
                 // 正確性スコア
                 const accuracyScore = accuracy;
@@ -1097,7 +1107,7 @@
                 const variance = this.calculateVariance(this.reactionTimes);
                 const consistencyScore = Math.max(0, 100 - variance / 1000);
                 
-                // 総合スコア
+                // 総合スコア (反応時間40%、正確性40%、一貫性20%)
                 const focusScore = (reactionScore * 0.4 + accuracyScore * 0.4 + consistencyScore * 0.2);
                 
                 return Math.round(Math.max(0, Math.min(100, focusScore)));
@@ -1188,6 +1198,9 @@
             }
             
             showResults() {
+                // 最終的なデータを確実に記録
+                this.recordFocusData();
+                
                 // 最終統計の計算
                 const finalAccuracy = this.totalQuestions > 0 ? Math.round((this.correctAnswers / this.totalQuestions) * 100) : 0;
                 const finalAvgReaction = this.reactionTimes.length > 0 ? Math.round(this.reactionTimes.reduce((sum, time) => sum + time, 0) / this.reactionTimes.length) : 0;
@@ -1203,11 +1216,14 @@
                 // 分析結果を生成
                 this.generateInsights(finalAccuracy, finalAvgReaction, finalPeakFocus);
                 
-                // グラフを描画
-                this.drawFocusHistoryChart();
-                
                 // モーダルを表示
                 document.getElementById('resultsModal').style.display = 'flex';
+                
+                // グラフを描画（少し遅延させてDOM更新後に実行）
+                setTimeout(() => {
+                    console.log(`Drawing chart with ${this.focusHistory.length} data points`);
+                    this.drawFocusHistoryChart();
+                }, 100);
                 
                 // ボタンの状態をリセット
                 document.getElementById('startBtn').disabled = false;
@@ -1309,7 +1325,7 @@
                 ctx.strokeStyle = '#e0e0e0';
                 ctx.lineWidth = 1;
                 
-                // 縦線（時間軸）- 30秒間隔
+                // 縦線（時間軸）- 30秒間隔で4本（0, 30, 60, 90秒）
                 for (let i = 0; i <= 3; i++) {
                     const x = padding + (chartWidth / 3) * i;
                     ctx.beginPath();
@@ -1336,7 +1352,7 @@
                 const timeLabels = ['0秒', '30秒', '60秒', '90秒'];
                 for (let i = 0; i <= 3; i++) {
                     const x = padding + (chartWidth / 3) * i;
-                    ctx.fillText(timeLabels[i], x, height - 10);
+                    ctx.fillText(timeLabels[i], x, height - 15);
                 }
                 
                 // Y軸ラベル（集中度）
@@ -1346,14 +1362,16 @@
                     ctx.fillText(`${i * 10}`, padding - 10, y);
                 }
                 
-                // 集中度ラインを描画
+                // セッション全体（90秒）に対する相対位置でグラフを描画
                 if (this.focusHistory.length > 1) {
                     ctx.strokeStyle = '#667eea';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
                     
                     this.focusHistory.forEach((data, index) => {
-                        const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
+                        // セッション全体（90秒）に対する相対位置を計算
+                        const relativeTime = Math.min(data.timestamp / this.sessionDuration, 1.0);
+                        const x = padding + relativeTime * chartWidth;
                         const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
                         
                         if (index === 0) {
@@ -1368,11 +1386,12 @@
                     // データポイントを描画
                     ctx.fillStyle = '#667eea';
                     this.focusHistory.forEach((data) => {
-                        const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
+                        const relativeTime = Math.min(data.timestamp / this.sessionDuration, 1.0);
+                        const x = padding + relativeTime * chartWidth;
                         const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
                         
                         ctx.beginPath();
-                        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                        ctx.arc(x, y, 3, 0, 2 * Math.PI);
                         ctx.fill();
                     });
                 }
@@ -1381,31 +1400,34 @@
                 ctx.fillStyle = '#999';
                 ctx.font = '10px sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText(`データポイント: ${this.focusHistory.length}`, padding, padding - 20);
+                ctx.fillText(`データポイント: ${this.focusHistory.length} / 期間: ${Math.round(this.sessionDuration/1000)}秒`, padding, padding - 20);
                 
                 // トレンドライン（データが十分にある場合）
-                if (this.focusHistory.length > 5) {
+                if (this.focusHistory.length > 3) {
                     ctx.strokeStyle = '#ff6b6b';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([5, 5]);
                     ctx.beginPath();
                     
-                    const windowSize = Math.min(5, Math.floor(this.focusHistory.length / 3));
-                    for (let i = windowSize - 1; i < this.focusHistory.length; i++) {
-                        const avgFocus = this.focusHistory.slice(i - windowSize + 1, i + 1)
-                            .reduce((sum, d) => sum + d.focusScore, 0) / windowSize;
-                        
-                        const x = padding + (this.focusHistory[i].timestamp / this.sessionDuration) * chartWidth;
-                        const y = padding + chartHeight - (avgFocus / 100) * chartHeight;
-                        
-                        if (i === windowSize - 1) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
+                    const windowSize = Math.min(3, Math.floor(this.focusHistory.length / 2));
+                    if (windowSize > 1) {
+                        for (let i = windowSize - 1; i < this.focusHistory.length; i++) {
+                            const avgFocus = this.focusHistory.slice(i - windowSize + 1, i + 1)
+                                .reduce((sum, d) => sum + d.focusScore, 0) / windowSize;
+                            
+                            const relativeTime = Math.min(this.focusHistory[i].timestamp / this.sessionDuration, 1.0);
+                            const x = padding + relativeTime * chartWidth;
+                            const y = padding + chartHeight - (avgFocus / 100) * chartHeight;
+                            
+                            if (i === windowSize - 1) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
                         }
+                        
+                        ctx.stroke();
                     }
-                    
-                    ctx.stroke();
                     ctx.setLineDash([]);
                 }
                 
@@ -1414,7 +1436,7 @@
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#667eea';
                 ctx.fillText('● 集中度', padding, 30);
-                if (this.focusHistory.length > 5) {
+                if (this.focusHistory.length > 3) {
                     ctx.fillStyle = '#ff6b6b';
                     ctx.fillText('- - トレンド', padding + 80, 30);
                 }
