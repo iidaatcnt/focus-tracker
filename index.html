@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Tracker - 集中度可視化ツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #focusChart {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fafafa;
+            display: block;
+            width: 100%;
+        }
+
+        .stats-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .focus-meter {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .meter-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .meter-label {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .meter-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .meter-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f);
+        }
+
+        .stats-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-paused {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Focus Tracker</h1>
+            <p>あなたの集中度をリアルタイムで可視化</p>
+        </div>
+
+        <div class="status-indicator status-stopped">
+            <div class="status-dot"></div>
+            <span id="statusText">停止中</span>
+        </div>
+
+        <div class="main-content">
+            <div class="chart-section">
+                <h2 class="chart-title">集中度の推移</h2>
+                <canvas id="focusChart" width="600" height="300"></canvas>
+            </div>
+
+            <div class="stats-section">
+                <div class="focus-meter">
+                    <div class="meter-label">現在の集中度</div>
+                    <div class="meter-value" id="currentFocus">0</div>
+                    <div class="meter-bar">
+                        <div class="meter-fill" id="meterFill" style="width: 0%"></div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #888;">0-100点</div>
+                </div>
+
+                <div class="stats-panel">
+                    <h3 style="margin-bottom: 20px; color: #333;">セッション統計</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">セッション時間</span>
+                        <span class="stat-value" id="sessionTime">00:00:00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">平均集中度</span>
+                        <span class="stat-value" id="avgFocus">0点</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">最高集中度</span>
+                        <span class="stat-value" id="maxFocus">0点</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">総クリック数</span>
+                        <span class="stat-value" id="totalClicks">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">総キーストローク</span>
+                        <span class="stat-value" id="totalKeystrokes">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn">開始</button>
+            <button class="btn btn-secondary" id="pauseBtn" disabled>一時停止</button>
+            <button class="btn btn-danger" id="resetBtn">リセット</button>
+        </div>
+    </div>
+
+    <script>
+        class FocusTracker {
+            constructor() {
+                this.canvas = document.getElementById('focusChart');
+                this.ctx = this.canvas.getContext('2d');
+                this.isTracking = false;
+                this.isPaused = false;
+                this.startTime = null;
+                this.pausedTime = 0;
+                
+                // データ配列
+                this.focusData = [];
+                this.clickCount = 0;
+                this.keystrokeCount = 0;
+                this.sessionClicks = 0;
+                this.sessionKeystrokes = 0;
+                
+                // 設定
+                this.updateInterval = 1000; // 1秒ごとに更新
+                this.timeWindow = 60; // 60秒の移動平均
+                this.maxDataPoints = 300; // 最大5分間のデータ
+                
+                this.initializeCanvas();
+                this.bindEvents();
+                this.startUpdateLoop();
+            }
+            
+            initializeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                
+                this.ctx.scale(dpr, dpr);
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+                
+                this.drawChart();
+            }
+            
+            bindEvents() {
+                // マウスクリック検出
+                document.addEventListener('click', () => {
+                    if (this.isTracking && !this.isPaused) {
+                        this.clickCount++;
+                        this.sessionClicks++;
+                    }
+                });
+                
+                // キーストローク検出
+                document.addEventListener('keydown', () => {
+                    if (this.isTracking && !this.isPaused) {
+                        this.keystrokeCount++;
+                        this.sessionKeystrokes++;
+                    }
+                });
+                
+                // コントロールボタン
+                document.getElementById('startBtn').addEventListener('click', () => this.start());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                
+                // ウィンドウリサイズ対応
+                window.addEventListener('resize', () => this.initializeCanvas());
+            }
+            
+            start() {
+                this.isTracking = true;
+                this.isPaused = false;
+                this.startTime = Date.now() - this.pausedTime;
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                
+                this.updateStatus('active', 'トラッキング中');
+            }
+            
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                
+                if (this.isPaused) {
+                    this.pausedTime = Date.now() - this.startTime;
+                    document.getElementById('pauseBtn').textContent = '再開';
+                    this.updateStatus('paused', '一時停止中');
+                } else {
+                    this.startTime = Date.now() - this.pausedTime;
+                    document.getElementById('pauseBtn').textContent = '一時停止';
+                    this.updateStatus('active', 'トラッキング中');
+                }
+            }
+            
+            reset() {
+                this.isTracking = false;
+                this.isPaused = false;
+                this.startTime = null;
+                this.pausedTime = 0;
+                this.focusData = [];
+                this.clickCount = 0;
+                this.keystrokeCount = 0;
+                this.sessionClicks = 0;
+                this.sessionKeystrokes = 0;
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('pauseBtn').textContent = '一時停止';
+                
+                this.updateStatus('stopped', '停止中');
+                this.updateUI();
+                this.drawChart();
+            }
+            
+            updateStatus(status, text) {
+                const indicator = document.querySelector('.status-indicator');
+                const statusText = document.getElementById('statusText');
+                
+                indicator.className = `status-indicator status-${status}`;
+                statusText.textContent = text;
+            }
+            
+            calculateFocusScore() {
+                const activityScore = Math.min((this.clickCount + this.keystrokeCount) * 10, 100);
+                
+                // 理想的な活動レベルとの比較
+                const idealActivity = 8; // 1秒あたりの理想的な活動数
+                const currentActivity = this.clickCount + this.keystrokeCount;
+                
+                let focusScore = 0;
+                if (currentActivity === 0) {
+                    focusScore = 0; // 非活動
+                } else if (currentActivity <= idealActivity) {
+                    focusScore = (currentActivity / idealActivity) * 100;
+                } else {
+                    // 過度な活動は集中度を下げる
+                    const excess = currentActivity - idealActivity;
+                    focusScore = Math.max(100 - (excess * 10), 20);
+                }
+                
+                return Math.round(focusScore);
+            }
+            
+            startUpdateLoop() {
+                setInterval(() => {
+                    if (this.isTracking && !this.isPaused) {
+                        this.updateData();
+                    }
+                    this.updateUI();
+                }, this.updateInterval);
+            }
+            
+            updateData() {
+                const focusScore = this.calculateFocusScore();
+                const timestamp = Date.now();
+                
+                this.focusData.push({
+                    timestamp,
+                    clicks: this.clickCount,
+                    keystrokes: this.keystrokeCount,
+                    focusScore
+                });
+                
+                // データ数制限
+                if (this.focusData.length > this.maxDataPoints) {
+                    this.focusData.shift();
+                }
+                
+                // カウンターリセット
+                this.clickCount = 0;
+                this.keystrokeCount = 0;
+                
+                this.drawChart();
+            }
+            
+            updateUI() {
+                const currentScore = this.focusData.length > 0 ? this.focusData[this.focusData.length - 1].focusScore : 0;
+                
+                // 現在の集中度
+                document.getElementById('currentFocus').textContent = currentScore;
+                document.getElementById('meterFill').style.width = `${currentScore}%`;
+                
+                // メーターの色を集中度に応じて変更
+                const meterFill = document.getElementById('meterFill');
+                if (currentScore >= 70) {
+                    meterFill.style.background = '#6bcf7f';
+                } else if (currentScore >= 40) {
+                    meterFill.style.background = '#ffd93d';
+                } else {
+                    meterFill.style.background = '#ff6b6b';
+                }
+                
+                // セッション時間
+                if (this.startTime) {
+                    const elapsed = this.isPaused ? this.pausedTime : Date.now() - this.startTime;
+                    const hours = Math.floor(elapsed / 3600000);
+                    const minutes = Math.floor((elapsed % 3600000) / 60000);
+                    const seconds = Math.floor((elapsed % 60000) / 1000);
+                    
+                    document.getElementById('sessionTime').textContent = 
+                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+                
+                // 統計
+                if (this.focusData.length > 0) {
+                    const avgFocus = this.focusData.reduce((sum, data) => sum + data.focusScore, 0) / this.focusData.length;
+                    const maxFocus = Math.max(...this.focusData.map(data => data.focusScore));
+                    
+                    document.getElementById('avgFocus').textContent = `${Math.round(avgFocus)}点`;
+                    document.getElementById('maxFocus').textContent = `${maxFocus}点`;
+                }
+                
+                document.getElementById('totalClicks').textContent = this.sessionClicks;
+                document.getElementById('totalKeystrokes').textContent = this.sessionKeystrokes;
+            }
+            
+            drawChart() {
+                const width = this.canvas.offsetWidth;
+                const height = this.canvas.offsetHeight;
+                
+                this.ctx.clearRect(0, 0, width, height);
+                
+                // 背景
+                this.ctx.fillStyle = '#fafafa';
+                this.ctx.fillRect(0, 0, width, height);
+                
+                // グリッド線
+                this.ctx.strokeStyle = '#e0e0e0';
+                this.ctx.lineWidth = 1;
+                
+                // 水平線
+                for (let i = 0; i <= 10; i++) {
+                    const y = (height / 10) * i;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(width, y);
+                    this.ctx.stroke();
+                }
+                
+                // 垂直線
+                for (let i = 0; i <= 10; i++) {
+                    const x = (width / 10) * i;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, height);
+                    this.ctx.stroke();
+                }
+                
+                // データがない場合は終了
+                if (this.focusData.length === 0) {
+                    this.ctx.fillStyle = '#999';
+                    this.ctx.font = '16px sans-serif';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('データなし - トラッキングを開始してください', width / 2, height / 2);
+                    return;
+                }
+                
+                // 集中度グラフ
+                this.ctx.strokeStyle = '#667eea';
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                
+                const dataLength = this.focusData.length;
+                const xStep = width / Math.max(dataLength - 1, 1);
+                
+                this.focusData.forEach((data, index) => {
+                    const x = index * xStep;
+                    const y = height - (data.focusScore / 100) * height;
+                    
+                    if (index === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                });
+                
+                this.ctx.stroke();
+                
+                // データポイント
+                this.ctx.fillStyle = '#667eea';
+                this.focusData.forEach((data, index) => {
+                    const x = index * xStep;
+                    const y = height - (data.focusScore / 100) * height;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                });
+                
+                // Y軸ラベル
+                this.ctx.fillStyle = '#666';
+                this.ctx.font = '12px sans-serif';
+                this.ctx.textAlign = 'right';
+                
+                for (let i = 0; i <= 10; i++) {
+                    const value = 100 - (i * 10);
+                    const y = (height / 10) * i + 5;
+                    this.ctx.fillText(value, width - 10, y);
+                }
+            }
+        }
+        
+        // アプリケーション初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            new FocusTracker();
+        });
+    </script>
+</body>
+</html>
