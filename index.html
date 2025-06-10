@@ -492,7 +492,7 @@
     <div class="container">
         <div class="header">
             <h1>Focus Tracker v2.0</h1>
-            <p>反応速度と判断力で集中度を測定</p>
+            <p>反応速度と判断力で集中度を測定 - インク4色バージョン</p>
         </div>
 
         <div class="game-status">
@@ -1274,17 +1274,20 @@
             
             drawFocusHistoryChart() {
                 const canvas = document.getElementById('focusHistoryChart');
+                if (!canvas) return;
+                
                 const ctx = canvas.getContext('2d');
                 
                 // Canvasサイズ調整
-                const rect = canvas.getBoundingClientRect();
-                const dpr = window.devicePixelRatio || 1;
-                canvas.width = rect.width * dpr;
-                canvas.height = rect.height * dpr;
-                ctx.scale(dpr, dpr);
+                const container = canvas.parentElement;
+                const width = container.offsetWidth - 40; // パディング分を考慮
+                const height = 300;
                 
-                const width = rect.width;
-                const height = rect.height;
+                canvas.width = width;
+                canvas.height = height;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                
                 const padding = 60;
                 const chartWidth = width - 2 * padding;
                 const chartHeight = height - 2 * padding;
@@ -1298,7 +1301,7 @@
                     ctx.fillStyle = '#999';
                     ctx.font = '16px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('データが不足しています', width / 2, height / 2);
+                    ctx.fillText('データが記録されませんでした', width / 2, height / 2);
                     return;
                 }
                 
@@ -1343,43 +1346,51 @@
                     ctx.fillText(`${i * 10}`, padding - 10, y);
                 }
                 
-                // 集中度ライン
-                ctx.strokeStyle = '#667eea';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                
-                this.focusHistory.forEach((data, index) => {
-                    const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
-                    const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
-                    
-                    if (index === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                });
-                
-                ctx.stroke();
-                
-                // データポイント
-                ctx.fillStyle = '#667eea';
-                this.focusHistory.forEach((data) => {
-                    const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
-                    const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
-                    
+                // 集中度ラインを描画
+                if (this.focusHistory.length > 1) {
+                    ctx.strokeStyle = '#667eea';
+                    ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.arc(x, y, 4, 0, 2 * Math.PI);
-                    ctx.fill();
-                });
+                    
+                    this.focusHistory.forEach((data, index) => {
+                        const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
+                        const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
+                        
+                        if (index === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    
+                    ctx.stroke();
+                    
+                    // データポイントを描画
+                    ctx.fillStyle = '#667eea';
+                    this.focusHistory.forEach((data) => {
+                        const x = padding + (data.timestamp / this.sessionDuration) * chartWidth;
+                        const y = padding + chartHeight - (data.focusScore / 100) * chartHeight;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
                 
-                // トレンドライン（単純移動平均）
-                if (this.focusHistory.length > 10) {
+                // データポイント数を表示（デバッグ用）
+                ctx.fillStyle = '#999';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`データポイント: ${this.focusHistory.length}`, padding, padding - 20);
+                
+                // トレンドライン（データが十分にある場合）
+                if (this.focusHistory.length > 5) {
                     ctx.strokeStyle = '#ff6b6b';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([5, 5]);
                     ctx.beginPath();
                     
-                    const windowSize = 5;
+                    const windowSize = Math.min(5, Math.floor(this.focusHistory.length / 3));
                     for (let i = windowSize - 1; i < this.focusHistory.length; i++) {
                         const avgFocus = this.focusHistory.slice(i - windowSize + 1, i + 1)
                             .reduce((sum, d) => sum + d.focusScore, 0) / windowSize;
@@ -1399,12 +1410,14 @@
                 }
                 
                 // 凡例
-                ctx.font = '14px sans-serif';
+                ctx.font = '12px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#667eea';
                 ctx.fillText('● 集中度', padding, 30);
-                ctx.fillStyle = '#ff6b6b';
-                ctx.fillText('- - トレンド', padding + 100, 30);
+                if (this.focusHistory.length > 5) {
+                    ctx.fillStyle = '#ff6b6b';
+                    ctx.fillText('- - トレンド', padding + 80, 30);
+                }
             }
             
             startNewSession() {
