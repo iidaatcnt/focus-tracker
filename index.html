@@ -640,10 +640,14 @@
                 // 設定
                 this.challengeInterval = 2000; // 2秒ごとに新しい問題
                 this.targetLifetime = 3000; // ターゲットが表示される時間
-                this.sessionDuration = 300000; // 5分間のセッション (300秒 = 300000ms)
+                this.sessionDuration = 90000; // 90秒のセッション (1分30秒 = 90000ms)
                 
                 // 集中度データ履歴
                 this.focusHistory = [];
+                
+                // 音声システム
+                this.audioContext = null;
+                this.initAudio();
                 
                 // シンボルと色の定義
                 this.symbols = ['●', '▲', '★', '■', '♦', '❤'];
@@ -659,6 +663,59 @@
                 
                 this.bindEvents();
                 this.updateUI();
+            }
+            
+            initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.warn('Audio context not supported');
+                    this.audioContext = null;
+                }
+            }
+            
+            playBeep(frequency = 800, duration = 200, volume = 0.3) {
+                if (!this.audioContext) return;
+                
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration / 1000);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration / 1000);
+                } catch (e) {
+                    console.warn('Failed to play beep:', e);
+                }
+            }
+            
+            playCountdownBeep(count) {
+                // カウントダウン音（高い音程から低い音程へ）
+                const frequencies = [1000, 800, 600]; // 3,2,1の音
+                const frequency = frequencies[3 - count] || 400; // 0の時は低い音
+                this.playBeep(frequency, 300, 0.4);
+            }
+            
+            playEndWarningBeep() {
+                // 終了警告音（2回連続の短いビープ）
+                this.playBeep(1200, 150, 0.3);
+                setTimeout(() => this.playBeep(1200, 150, 0.3), 200);
+            }
+            
+            playGameEndBeep() {
+                // ゲーム終了音（低音から高音へ）
+                this.playBeep(400, 300, 0.3);
+                setTimeout(() => this.playBeep(600, 300, 0.3), 150);
+                setTimeout(() => this.playBeep(800, 300, 0.3), 300);
             }
             
             bindEvents() {
@@ -690,8 +747,20 @@
                 countdown.style.display = 'block';
                 let count = 3;
                 
+                // 音声コンテキストを有効化（ユーザーインタラクション後）
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
                 const countInterval = setInterval(() => {
                     countdown.textContent = count;
+                    
+                    if (count > 0) {
+                        this.playCountdownBeep(count);
+                    } else {
+                        this.playBeep(1200, 500, 0.5); // スタート音
+                    }
+                    
                     count--;
                     
                     if (count < 0) {
@@ -718,6 +787,22 @@
                 if (!this.startTime) return;
                 
                 const elapsed = Date.now() - this.startTime;
+                const remaining = this.sessionDuration - elapsed;
+                
+                // 終了10秒前から1秒ごとにカウントダウン音
+                if (remaining <= 10000 && remaining > 9000) {
+                    this.playEndWarningBeep();
+                } else if (remaining <= 9000 && remaining > 0) {
+                    const secondsLeft = Math.ceil(remaining / 1000);
+                    if (remaining % 1000 < 100) { // 1秒ごとに（誤差100ms以内）
+                        if (secondsLeft <= 3) {
+                            this.playCountdownBeep(secondsLeft);
+                        } else {
+                            this.playBeep(600, 150, 0.2); // 短いビープ
+                        }
+                    }
+                }
+                
                 if (elapsed >= this.sessionDuration) {
                     this.endSession();
                 }
