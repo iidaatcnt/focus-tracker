@@ -127,6 +127,23 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .instruction-panel.clickable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .instruction-panel.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #7c8ef5, #8559c7);
+        }
+
+        .instruction-panel.clickable:active {
+            transform: translateY(0);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
 
         .game-canvas {
@@ -507,8 +524,8 @@
 
         <div class="main-content">
             <div class="game-area">
-                <div class="instruction-panel" id="instructionPanel">
-                    「開始」ボタンを押してゲームを始めましょう！
+                <div class="instruction-panel clickable" id="instructionPanel">
+                    開始：ボタンを押して測定を始めましょう！
                 </div>
                 <div class="game-canvas" id="gameCanvas">
                     <div class="countdown" id="countdown" style="display: none;"></div>
@@ -660,6 +677,9 @@
                 
                 this.bindEvents();
                 this.updateUI();
+                
+                // 初期状態で指示パネルをクリック可能にする
+                this.setInstructionClickable(true);
             }
             
             initAudio() {
@@ -722,9 +742,28 @@
                 
                 this.gameCanvas.addEventListener('click', (e) => this.handleCanvasClick(e));
                 
+                // 指示パネルのクリックイベント
+                this.instructionPanel.addEventListener('click', () => this.handleInstructionClick());
+                
                 // モーダル関連
                 document.getElementById('newSessionBtn').addEventListener('click', () => this.startNewSession());
                 document.getElementById('closeModalBtn').addEventListener('click', () => this.closeModal());
+            }
+            
+            handleInstructionClick() {
+                // ゲーム開始可能な状態でのみ動作
+                if (!this.isPlaying && !this.isPaused && document.getElementById('startBtn').disabled === false) {
+                    this.startGame();
+                }
+            }
+            
+            setInstructionClickable(clickable) {
+                if (clickable) {
+                    this.instructionPanel.classList.add('clickable');
+                    this.instructionPanel.textContent = '開始：ボタンを押して測定を始めましょう！';
+                } else {
+                    this.instructionPanel.classList.remove('clickable');
+                }
             }
             
             startGame() {
@@ -1075,7 +1114,9 @@
                 document.getElementById('pauseBtn').disabled = true;
                 document.getElementById('pauseBtn').textContent = '一時停止';
                 
-                this.instructionPanel.textContent = '「開始」ボタンを押してゲームを始めましょう！';
+                // 指示パネルをクリック可能に戻す
+                this.setInstructionClickable(true);
+                
                 this.updateStatus('stopped', 'ゲーム準備完了');
                 this.updateUI();
             }
@@ -1229,6 +1270,10 @@
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('pauseBtn').disabled = true;
                 document.getElementById('pauseBtn').textContent = '一時停止';
+                
+                // 指示パネルをクリック可能に戻す
+                this.setInstructionClickable(true);
+                
                 this.updateStatus('stopped', 'セッション完了');
             }
             
