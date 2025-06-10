@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Focus Tracker - 集中度可視化ツール</title>
+    <title>Focus Tracker v2.0 - 集中度測定ゲーム</title>
     <style>
         * {
             margin: 0;
@@ -47,6 +47,56 @@
             font-size: 1.1rem;
         }
 
+        .game-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-paused {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .score-display {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
         .main-content {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -54,26 +104,78 @@
             margin-bottom: 30px;
         }
 
-        .chart-section {
+        .game-area {
             background: white;
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+            position: relative;
         }
 
-        .chart-title {
-            font-size: 1.3rem;
-            font-weight: 600;
+        .instruction-panel {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
             margin-bottom: 20px;
-            color: #333;
+            font-size: 1.3rem;
+            font-weight: bold;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
 
-        #focusChart {
+        .game-canvas {
+            width: 100%;
+            height: 300px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             background: #fafafa;
-            display: block;
-            width: 100%;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .target {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease;
+            user-select: none;
+        }
+
+        .target:hover {
+            transform: scale(1.1);
+        }
+
+        .target.correct-click {
+            animation: successPulse 0.3s ease;
+        }
+
+        .target.wrong-click {
+            animation: errorShake 0.3s ease;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); background-color: #4CAF50; }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            50% { background-color: #f44336; }
         }
 
         .stats-section {
@@ -148,6 +250,34 @@
             color: #333;
         }
 
+        .recent-performance {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .performance-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+
+        .performance-item:last-child {
+            border-bottom: none;
+        }
+
+        .performance-correct {
+            color: #4CAF50;
+        }
+
+        .performance-wrong {
+            color: #f44336;
+        }
+
         .controls {
             display: flex;
             justify-content: center;
@@ -198,37 +328,15 @@
             box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
         }
 
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 20px;
-        }
-
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-paused {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-stopped {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
+        .countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: bold;
+            color: #667eea;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
         @media (max-width: 768px) {
@@ -248,25 +356,38 @@
             .btn {
                 width: 200px;
             }
+
+            .game-status {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Focus Tracker</h1>
-            <p>あなたの集中度をリアルタイムで可視化</p>
+            <h1>Focus Tracker v2.0</h1>
+            <p>反応速度と判断力で集中度を測定</p>
         </div>
 
-        <div class="status-indicator status-stopped">
-            <div class="status-dot"></div>
-            <span id="statusText">停止中</span>
+        <div class="game-status">
+            <div class="status-indicator status-stopped">
+                <div class="status-dot"></div>
+                <span id="statusText">ゲーム準備完了</span>
+            </div>
+            <div class="score-display">
+                スコア: <span id="totalScore">0</span>
+            </div>
         </div>
 
         <div class="main-content">
-            <div class="chart-section">
-                <h2 class="chart-title">集中度の推移</h2>
-                <canvas id="focusChart" width="600" height="300"></canvas>
+            <div class="game-area">
+                <div class="instruction-panel" id="instructionPanel">
+                    「開始」ボタンを押してゲームを始めましょう！
+                </div>
+                <div class="game-canvas" id="gameCanvas">
+                    <div class="countdown" id="countdown" style="display: none;"></div>
+                </div>
             </div>
 
             <div class="stats-section">
@@ -280,26 +401,35 @@
                 </div>
 
                 <div class="stats-panel">
-                    <h3 style="margin-bottom: 20px; color: #333;">セッション統計</h3>
+                    <h3 style="margin-bottom: 20px; color: #333;">ゲーム統計</h3>
                     <div class="stat-item">
-                        <span class="stat-label">セッション時間</span>
-                        <span class="stat-value" id="sessionTime">00:00:00</span>
+                        <span class="stat-label">ゲーム時間</span>
+                        <span class="stat-value" id="gameTime">00:00</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">平均集中度</span>
-                        <span class="stat-value" id="avgFocus">0点</span>
+                        <span class="stat-label">平均反応時間</span>
+                        <span class="stat-value" id="avgReactionTime">0ms</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">最高集中度</span>
-                        <span class="stat-value" id="maxFocus">0点</span>
+                        <span class="stat-label">正解率</span>
+                        <span class="stat-value" id="accuracy">0%</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">総クリック数</span>
-                        <span class="stat-value" id="totalClicks">0</span>
+                        <span class="stat-label">正解数</span>
+                        <span class="stat-value" id="correctAnswers">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">総キーストローク</span>
-                        <span class="stat-value" id="totalKeystrokes">0</span>
+                        <span class="stat-label">総問題数</span>
+                        <span class="stat-value" id="totalQuestions">0</span>
+                    </div>
+                </div>
+
+                <div class="recent-performance">
+                    <h3 style="margin-bottom: 15px; color: #333;">最近の成績</h3>
+                    <div id="performanceLog">
+                        <div style="text-align: center; color: #999; font-style: italic;">
+                            ゲーム開始後に表示されます
+                        </div>
                     </div>
                 </div>
             </div>
@@ -313,81 +443,292 @@
     </div>
 
     <script>
-        class FocusTracker {
+        class FocusGameTracker {
             constructor() {
-                this.canvas = document.getElementById('focusChart');
-                this.ctx = this.canvas.getContext('2d');
-                this.isTracking = false;
+                this.gameCanvas = document.getElementById('gameCanvas');
+                this.instructionPanel = document.getElementById('instructionPanel');
+                this.isPlaying = false;
                 this.isPaused = false;
                 this.startTime = null;
                 this.pausedTime = 0;
                 
-                // データ配列
-                this.focusData = [];
-                this.clickCount = 0;
-                this.keystrokeCount = 0;
-                this.sessionClicks = 0;
-                this.sessionKeystrokes = 0;
+                // ゲーム統計
+                this.score = 0;
+                this.correctAnswers = 0;
+                this.totalQuestions = 0;
+                this.reactionTimes = [];
+                this.performanceLog = [];
+                
+                // 現在のチャレンジ
+                this.currentChallenge = null;
+                this.challengeStartTime = null;
+                this.gameInterval = null;
+                this.nextChallengeTimeout = null;
                 
                 // 設定
-                this.updateInterval = 1000; // 1秒ごとに更新
-                this.timeWindow = 60; // 60秒の移動平均
-                this.maxDataPoints = 300; // 最大5分間のデータ
+                this.challengeInterval = 2000; // 2秒ごとに新しい問題
+                this.targetLifetime = 3000; // ターゲットが表示される時間
                 
-                this.initializeCanvas();
+                // シンボルと色の定義
+                this.symbols = ['●', '▲', '★', '■', '♦', '❤'];
+                this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+                this.shapes = [
+                    { symbol: '●', name: '丸' },
+                    { symbol: '▲', name: '三角' },
+                    { symbol: '★', name: '星' },
+                    { symbol: '■', name: '四角' },
+                    { symbol: '♦', name: 'ダイヤ' },
+                    { symbol: '❤', name: 'ハート' }
+                ];
+                
                 this.bindEvents();
-                this.startUpdateLoop();
-            }
-            
-            initializeCanvas() {
-                const rect = this.canvas.getBoundingClientRect();
-                const dpr = window.devicePixelRatio || 1;
-                
-                this.canvas.width = rect.width * dpr;
-                this.canvas.height = rect.height * dpr;
-                
-                this.ctx.scale(dpr, dpr);
-                this.canvas.style.width = rect.width + 'px';
-                this.canvas.style.height = rect.height + 'px';
-                
-                this.drawChart();
+                this.updateUI();
             }
             
             bindEvents() {
-                // マウスクリック検出
-                document.addEventListener('click', () => {
-                    if (this.isTracking && !this.isPaused) {
-                        this.clickCount++;
-                        this.sessionClicks++;
-                    }
-                });
-                
-                // キーストローク検出
-                document.addEventListener('keydown', () => {
-                    if (this.isTracking && !this.isPaused) {
-                        this.keystrokeCount++;
-                        this.sessionKeystrokes++;
-                    }
-                });
-                
-                // コントロールボタン
-                document.getElementById('startBtn').addEventListener('click', () => this.start());
+                document.getElementById('startBtn').addEventListener('click', () => this.startGame());
                 document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
-                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
                 
-                // ウィンドウリサイズ対応
-                window.addEventListener('resize', () => this.initializeCanvas());
+                this.gameCanvas.addEventListener('click', (e) => this.handleCanvasClick(e));
             }
             
-            start() {
-                this.isTracking = true;
+            startGame() {
+                this.isPlaying = true;
                 this.isPaused = false;
                 this.startTime = Date.now() - this.pausedTime;
                 
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('pauseBtn').disabled = false;
                 
-                this.updateStatus('active', 'トラッキング中');
+                this.updateStatus('active', 'ゲーム中');
+                this.startCountdown();
+            }
+            
+            startCountdown() {
+                const countdown = document.getElementById('countdown');
+                countdown.style.display = 'block';
+                let count = 3;
+                
+                const countInterval = setInterval(() => {
+                    countdown.textContent = count;
+                    count--;
+                    
+                    if (count < 0) {
+                        clearInterval(countInterval);
+                        countdown.style.display = 'none';
+                        this.startGameLoop();
+                    }
+                }, 1000);
+            }
+            
+            startGameLoop() {
+                this.createNewChallenge();
+                
+                this.gameInterval = setInterval(() => {
+                    if (!this.isPaused) {
+                        this.updateUI();
+                    }
+                }, 100);
+            }
+            
+            createNewChallenge() {
+                if (!this.isPlaying || this.isPaused) return;
+                
+                // 前のターゲットをクリア
+                this.clearTargets();
+                
+                // 新しいチャレンジを生成
+                this.currentChallenge = this.generateChallenge();
+                this.challengeStartTime = Date.now();
+                
+                // 指示を表示
+                this.instructionPanel.textContent = this.currentChallenge.instruction;
+                
+                // ターゲットを生成
+                this.createTargets();
+                
+                // 次のチャレンジをスケジュール
+                this.scheduleNextChallenge();
+            }
+            
+            generateChallenge() {
+                const challengeTypes = [
+                    'click_color',
+                    'avoid_color', 
+                    'click_shape',
+                    'avoid_shape',
+                    'click_specific',
+                    'avoid_specific'
+                ];
+                
+                const type = challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
+                const targetColor = this.colors[Math.floor(Math.random() * this.colors.length)];
+                const targetShape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
+                
+                let instruction, correctAction;
+                
+                switch(type) {
+                    case 'click_color':
+                        instruction = `${this.getColorName(targetColor)}をクリックしてください`;
+                        correctAction = (target) => target.color === targetColor;
+                        break;
+                    case 'avoid_color':
+                        instruction = `${this.getColorName(targetColor)}はクリックしないでください`;
+                        correctAction = (target) => target.color !== targetColor;
+                        break;
+                    case 'click_shape':
+                        instruction = `${targetShape.name}をクリックしてください`;
+                        correctAction = (target) => target.symbol === targetShape.symbol;
+                        break;
+                    case 'avoid_shape':
+                        instruction = `${targetShape.name}はクリックしないでください`;
+                        correctAction = (target) => target.symbol !== targetShape.symbol;
+                        break;
+                    case 'click_specific':
+                        instruction = `${this.getColorName(targetColor)}の${targetShape.name}をクリックしてください`;
+                        correctAction = (target) => target.color === targetColor && target.symbol === targetShape.symbol;
+                        break;
+                    case 'avoid_specific':
+                        instruction = `${this.getColorName(targetColor)}の${targetShape.name}以外をクリックしてください`;
+                        correctAction = (target) => !(target.color === targetColor && target.symbol === targetShape.symbol);
+                        break;
+                }
+                
+                return {
+                    type,
+                    instruction,
+                    correctAction,
+                    targetColor,
+                    targetShape: targetShape.symbol,
+                    answered: false
+                };
+            }
+            
+            getColorName(color) {
+                const colorNames = {
+                    '#FF6B6B': '赤',
+                    '#4ECDC4': '青緑',
+                    '#45B7D1': '青',
+                    '#96CEB4': '緑',
+                    '#FFEAA7': '黄',
+                    '#DDA0DD': '紫'
+                };
+                return colorNames[color] || '色';
+            }
+            
+            createTargets() {
+                const numTargets = 3 + Math.floor(Math.random() * 4); // 3-6個のターゲット
+                
+                for (let i = 0; i < numTargets; i++) {
+                    const target = document.createElement('div');
+                    target.className = 'target';
+                    
+                    // ランダムなシンボルと色
+                    const symbol = this.symbols[Math.floor(Math.random() * this.symbols.length)];
+                    const color = this.colors[Math.floor(Math.random() * this.colors.length)];
+                    const size = 40 + Math.random() * 30; // 40-70px
+                    
+                    target.textContent = symbol;
+                    target.style.backgroundColor = color;
+                    target.style.color = this.getContrastColor(color);
+                    target.style.width = size + 'px';
+                    target.style.height = size + 'px';
+                    target.style.fontSize = (size * 0.6) + 'px';
+                    
+                    // ランダムな位置
+                    const maxX = this.gameCanvas.offsetWidth - size;
+                    const maxY = this.gameCanvas.offsetHeight - size;
+                    target.style.left = Math.random() * maxX + 'px';
+                    target.style.top = Math.random() * maxY + 'px';
+                    
+                    // データを保存
+                    target.dataset.symbol = symbol;
+                    target.dataset.color = color;
+                    
+                    target.addEventListener('click', (e) => this.handleTargetClick(e, target));
+                    
+                    this.gameCanvas.appendChild(target);
+                }
+            }
+            
+            getContrastColor(backgroundColor) {
+                // 背景色に対してコントラストの良い文字色を返す
+                const lightColors = ['#FFEAA7', '#96CEB4', '#4ECDC4'];
+                return lightColors.includes(backgroundColor) ? '#333' : '#fff';
+            }
+            
+            handleTargetClick(e, target) {
+                e.stopPropagation();
+                
+                if (!this.currentChallenge || this.currentChallenge.answered) return;
+                
+                const reactionTime = Date.now() - this.challengeStartTime;
+                const targetData = {
+                    symbol: target.dataset.symbol,
+                    color: target.dataset.color
+                };
+                
+                const isCorrect = this.currentChallenge.correctAction(targetData);
+                
+                this.processAnswer(isCorrect, reactionTime, target);
+            }
+            
+            handleCanvasClick(e) {
+                // 背景をクリックした場合（ターゲット以外）
+                if (e.target === this.gameCanvas) {
+                    if (!this.currentChallenge || this.currentChallenge.answered) return;
+                    
+                    const reactionTime = Date.now() - this.challengeStartTime;
+                    // 背景クリックは常に不正解
+                    this.processAnswer(false, reactionTime, null);
+                }
+            }
+            
+            processAnswer(isCorrect, reactionTime, targetElement) {
+                this.currentChallenge.answered = true;
+                this.totalQuestions++;
+                this.reactionTimes.push(reactionTime);
+                
+                if (isCorrect) {
+                    this.correctAnswers++;
+                    this.score += Math.max(1000 - reactionTime, 100); // 早いほど高得点
+                    
+                    if (targetElement) {
+                        targetElement.classList.add('correct-click');
+                    }
+                } else {
+                    this.score = Math.max(0, this.score - 200); // ペナルティ
+                    
+                    if (targetElement) {
+                        targetElement.classList.add('wrong-click');
+                    }
+                }
+                
+                // パフォーマンスログに追加
+                this.performanceLog.unshift({
+                    correct: isCorrect,
+                    reactionTime,
+                    timestamp: Date.now()
+                });
+                
+                // ログは最新10件まで
+                if (this.performanceLog.length > 10) {
+                    this.performanceLog.pop();
+                }
+                
+                this.updatePerformanceDisplay();
+            }
+            
+            scheduleNextChallenge() {
+                this.nextChallengeTimeout = setTimeout(() => {
+                    this.createNewChallenge();
+                }, this.challengeInterval);
+            }
+            
+            clearTargets() {
+                const targets = this.gameCanvas.querySelectorAll('.target');
+                targets.forEach(target => target.remove());
             }
             
             togglePause() {
@@ -397,31 +738,45 @@
                     this.pausedTime = Date.now() - this.startTime;
                     document.getElementById('pauseBtn').textContent = '再開';
                     this.updateStatus('paused', '一時停止中');
+                    
+                    clearTimeout(this.nextChallengeTimeout);
                 } else {
                     this.startTime = Date.now() - this.pausedTime;
                     document.getElementById('pauseBtn').textContent = '一時停止';
-                    this.updateStatus('active', 'トラッキング中');
+                    this.updateStatus('active', 'ゲーム中');
+                    
+                    if (this.currentChallenge && !this.currentChallenge.answered) {
+                        this.scheduleNextChallenge();
+                    } else {
+                        this.createNewChallenge();
+                    }
                 }
             }
             
-            reset() {
-                this.isTracking = false;
+            resetGame() {
+                this.isPlaying = false;
                 this.isPaused = false;
                 this.startTime = null;
                 this.pausedTime = 0;
-                this.focusData = [];
-                this.clickCount = 0;
-                this.keystrokeCount = 0;
-                this.sessionClicks = 0;
-                this.sessionKeystrokes = 0;
+                this.score = 0;
+                this.correctAnswers = 0;
+                this.totalQuestions = 0;
+                this.reactionTimes = [];
+                this.performanceLog = [];
+                this.currentChallenge = null;
+                
+                clearInterval(this.gameInterval);
+                clearTimeout(this.nextChallengeTimeout);
+                this.clearTargets();
                 
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('pauseBtn').disabled = true;
                 document.getElementById('pauseBtn').textContent = '一時停止';
                 
-                this.updateStatus('stopped', '停止中');
+                this.instructionPanel.textContent = '「開始」ボタンを押してゲームを始めましょう！';
+                this.updateStatus('stopped', 'ゲーム準備完了');
                 this.updateUI();
-                this.drawChart();
+                this.updatePerformanceDisplay();
             }
             
             updateStatus(status, text) {
@@ -433,188 +788,104 @@
             }
             
             calculateFocusScore() {
-                const activityScore = Math.min((this.clickCount + this.keystrokeCount) * 10, 100);
+                if (this.reactionTimes.length === 0) return 0;
                 
-                // 理想的な活動レベルとの比較
-                const idealActivity = 8; // 1秒あたりの理想的な活動数
-                const currentActivity = this.clickCount + this.keystrokeCount;
+                const avgReactionTime = this.reactionTimes.reduce((sum, time) => sum + time, 0) / this.reactionTimes.length;
+                const accuracy = this.totalQuestions > 0 ? (this.correctAnswers / this.totalQuestions) * 100 : 0;
                 
-                let focusScore = 0;
-                if (currentActivity === 0) {
-                    focusScore = 0; // 非活動
-                } else if (currentActivity <= idealActivity) {
-                    focusScore = (currentActivity / idealActivity) * 100;
-                } else {
-                    // 過度な活動は集中度を下げる
-                    const excess = currentActivity - idealActivity;
-                    focusScore = Math.max(100 - (excess * 10), 20);
-                }
+                // 反応時間スコア (500ms以下が理想)
+                const reactionScore = Math.max(0, 100 - (avgReactionTime - 500) / 10);
                 
-                return Math.round(focusScore);
+                // 正確性スコア
+                const accuracyScore = accuracy;
+                
+                // 一貫性スコア (反応時間のばらつきが少ないほど高い)
+                const variance = this.calculateVariance(this.reactionTimes);
+                const consistencyScore = Math.max(0, 100 - variance / 1000);
+                
+                // 総合スコア
+                const focusScore = (reactionScore * 0.4 + accuracyScore * 0.4 + consistencyScore * 0.2);
+                
+                return Math.round(Math.max(0, Math.min(100, focusScore)));
             }
             
-            startUpdateLoop() {
-                setInterval(() => {
-                    if (this.isTracking && !this.isPaused) {
-                        this.updateData();
-                    }
-                    this.updateUI();
-                }, this.updateInterval);
-            }
-            
-            updateData() {
-                const focusScore = this.calculateFocusScore();
-                const timestamp = Date.now();
-                
-                this.focusData.push({
-                    timestamp,
-                    clicks: this.clickCount,
-                    keystrokes: this.keystrokeCount,
-                    focusScore
-                });
-                
-                // データ数制限
-                if (this.focusData.length > this.maxDataPoints) {
-                    this.focusData.shift();
-                }
-                
-                // カウンターリセット
-                this.clickCount = 0;
-                this.keystrokeCount = 0;
-                
-                this.drawChart();
+            calculateVariance(array) {
+                if (array.length === 0) return 0;
+                const avg = array.reduce((sum, val) => sum + val, 0) / array.length;
+                const variance = array.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / array.length;
+                return variance;
             }
             
             updateUI() {
-                const currentScore = this.focusData.length > 0 ? this.focusData[this.focusData.length - 1].focusScore : 0;
+                // スコア表示
+                document.getElementById('totalScore').textContent = this.score;
                 
-                // 現在の集中度
-                document.getElementById('currentFocus').textContent = currentScore;
-                document.getElementById('meterFill').style.width = `${currentScore}%`;
+                // 集中度表示
+                const focusScore = this.calculateFocusScore();
+                document.getElementById('currentFocus').textContent = focusScore;
+                document.getElementById('meterFill').style.width = `${focusScore}%`;
                 
-                // メーターの色を集中度に応じて変更
+                // メーターの色
                 const meterFill = document.getElementById('meterFill');
-                if (currentScore >= 70) {
+                if (focusScore >= 70) {
                     meterFill.style.background = '#6bcf7f';
-                } else if (currentScore >= 40) {
+                } else if (focusScore >= 40) {
                     meterFill.style.background = '#ffd93d';
                 } else {
                     meterFill.style.background = '#ff6b6b';
                 }
                 
-                // セッション時間
+                // ゲーム時間
                 if (this.startTime) {
                     const elapsed = this.isPaused ? this.pausedTime : Date.now() - this.startTime;
-                    const hours = Math.floor(elapsed / 3600000);
-                    const minutes = Math.floor((elapsed % 3600000) / 60000);
+                    const minutes = Math.floor(elapsed / 60000);
                     const seconds = Math.floor((elapsed % 60000) / 1000);
                     
-                    document.getElementById('sessionTime').textContent = 
-                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    document.getElementById('gameTime').textContent = 
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 }
                 
                 // 統計
-                if (this.focusData.length > 0) {
-                    const avgFocus = this.focusData.reduce((sum, data) => sum + data.focusScore, 0) / this.focusData.length;
-                    const maxFocus = Math.max(...this.focusData.map(data => data.focusScore));
-                    
-                    document.getElementById('avgFocus').textContent = `${Math.round(avgFocus)}点`;
-                    document.getElementById('maxFocus').textContent = `${maxFocus}点`;
-                }
+                const avgReactionTime = this.reactionTimes.length > 0 
+                    ? Math.round(this.reactionTimes.reduce((sum, time) => sum + time, 0) / this.reactionTimes.length)
+                    : 0;
                 
-                document.getElementById('totalClicks').textContent = this.sessionClicks;
-                document.getElementById('totalKeystrokes').textContent = this.sessionKeystrokes;
+                const accuracy = this.totalQuestions > 0 
+                    ? Math.round((this.correctAnswers / this.totalQuestions) * 100)
+                    : 0;
+                
+                document.getElementById('avgReactionTime').textContent = avgReactionTime + 'ms';
+                document.getElementById('accuracy').textContent = accuracy + '%';
+                document.getElementById('correctAnswers').textContent = this.correctAnswers;
+                document.getElementById('totalQuestions').textContent = this.totalQuestions;
             }
             
-            drawChart() {
-                const width = this.canvas.offsetWidth;
-                const height = this.canvas.offsetHeight;
+            updatePerformanceDisplay() {
+                const logContainer = document.getElementById('performanceLog');
                 
-                this.ctx.clearRect(0, 0, width, height);
-                
-                // 背景
-                this.ctx.fillStyle = '#fafafa';
-                this.ctx.fillRect(0, 0, width, height);
-                
-                // グリッド線
-                this.ctx.strokeStyle = '#e0e0e0';
-                this.ctx.lineWidth = 1;
-                
-                // 水平線
-                for (let i = 0; i <= 10; i++) {
-                    const y = (height / 10) * i;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, y);
-                    this.ctx.lineTo(width, y);
-                    this.ctx.stroke();
-                }
-                
-                // 垂直線
-                for (let i = 0; i <= 10; i++) {
-                    const x = (width / 10) * i;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, 0);
-                    this.ctx.lineTo(x, height);
-                    this.ctx.stroke();
-                }
-                
-                // データがない場合は終了
-                if (this.focusData.length === 0) {
-                    this.ctx.fillStyle = '#999';
-                    this.ctx.font = '16px sans-serif';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillText('データなし - トラッキングを開始してください', width / 2, height / 2);
+                if (this.performanceLog.length === 0) {
+                    logContainer.innerHTML = '<div style="text-align: center; color: #999; font-style: italic;">ゲーム開始後に表示されます</div>';
                     return;
                 }
                 
-                // 集中度グラフ
-                this.ctx.strokeStyle = '#667eea';
-                this.ctx.lineWidth = 3;
-                this.ctx.beginPath();
-                
-                const dataLength = this.focusData.length;
-                const xStep = width / Math.max(dataLength - 1, 1);
-                
-                this.focusData.forEach((data, index) => {
-                    const x = index * xStep;
-                    const y = height - (data.focusScore / 100) * height;
-                    
-                    if (index === 0) {
-                        this.ctx.moveTo(x, y);
-                    } else {
-                        this.ctx.lineTo(x, y);
-                    }
-                });
-                
-                this.ctx.stroke();
-                
-                // データポイント
-                this.ctx.fillStyle = '#667eea';
-                this.focusData.forEach((data, index) => {
-                    const x = index * xStep;
-                    const y = height - (data.focusScore / 100) * height;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.arc(x, y, 4, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                });
-                
-                // Y軸ラベル
-                this.ctx.fillStyle = '#666';
-                this.ctx.font = '12px sans-serif';
-                this.ctx.textAlign = 'right';
-                
-                for (let i = 0; i <= 10; i++) {
-                    const value = 100 - (i * 10);
-                    const y = (height / 10) * i + 5;
-                    this.ctx.fillText(value, width - 10, y);
-                }
+                logContainer.innerHTML = this.performanceLog
+                    .map((log, index) => {
+                        const className = log.correct ? 'performance-correct' : 'performance-wrong';
+                        const result = log.correct ? '正解' : '不正解';
+                        return `
+                            <div class="performance-item ${className}">
+                                <span>問題${this.performanceLog.length - index}</span>
+                                <span>${result} (${log.reactionTime}ms)</span>
+                            </div>
+                        `;
+                    })
+                    .join('');
             }
         }
         
         // アプリケーション初期化
         document.addEventListener('DOMContentLoaded', () => {
-            new FocusTracker();
+            new FocusGameTracker();
         });
     </script>
 </body>
